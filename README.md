@@ -1,8 +1,9 @@
 # Asset Tracking System
 
-A command-line asset/equipment tracking system built in Python with SQLite persistence.
-Models the core workflow companies, hospitals, and organizations use to track
-equipment check-out/check-in, ownership, and inventory levels.
+A Python asset/equipment tracking system with SQLite persistence, available as
+both a command-line tool and a Flask web app. Models the core workflow
+companies, hospitals, and organizations use to track equipment check-out/check-in,
+ownership, and inventory levels.
 
 ## Features
 
@@ -28,20 +29,26 @@ equipment check-out/check-in, ownership, and inventory levels.
 
 ```
 asset_tracker/
-├── models.py      # Asset & LogEntry data classes
-├── database.py     # SQLite persistence layer (all SQL lives here)
-├── tracker.py       # AssetTracker — business rules, the layer the UI talks to
-├── reports.py       # Usage report generation/aggregation
-├── main.py          # CLI menu — entry point
+├── models.py         # Asset & LogEntry data classes
+├── database.py       # SQLite persistence layer (all SQL lives here)
+├── tracker.py         # AssetTracker — business rules, the layer any UI talks to
+├── reports.py         # Usage report generation/aggregation
+├── main.py            # CLI menu — entry point
+├── app.py              # Flask web app — entry point
+├── templates/          # Jinja2 templates for the web UI
+├── static/style.css    # Web UI styling
 └── README.md
 ```
 
-This is a layered design on purpose: `main.py` (UI) never touches SQL directly,
-`tracker.py` (business logic) never touches the CLI, and `database.py` never
-enforces rules — it just persists what it's told. That separation is what lets
-you swap the CLI for a Flask API or web UI later without rewriting the logic.
+This is a layered design on purpose: neither `main.py` (CLI) nor `app.py` (web)
+touch SQL directly, `tracker.py` (business logic) doesn't know which UI is
+calling it, and `database.py` never enforces rules — it just persists what
+it's told. That separation is what let the web UI get added later (`app.py`)
+without changing a single line of `tracker.py`, `database.py`, or `models.py`.
 
 ## How to run
+
+### Command line
 
 ```bash
 cd asset_tracker
@@ -51,6 +58,28 @@ python3 main.py
 No external dependencies — uses only the Python standard library
 (`sqlite3`, `collections`, `datetime`). A database file `asset_tracker.db`
 is created automatically in the working directory on first run.
+
+### Web app
+
+```bash
+cd asset_tracker
+pip install -r requirements.txt
+python3 app.py
+```
+
+Then open **http://127.0.0.1:5000**. Requires Flask (see `requirements.txt`);
+everything else is still standard library. The web app reuses `tracker.py`,
+`database.py`, `models.py`, and `reports.py` exactly as-is — it's a thin
+Flask + Jinja2 layer on top of the same business logic the CLI uses, sharing
+the same `asset_tracker.db` file.
+
+**Web UI pages:**
+- **Dashboard** — live stats, low-stock alerts, full equipment table with inline check-in
+- **Add equipment** — register new assets
+- **Asset detail** — per-asset check-out/check-in and full history
+- **Search** — by Asset ID or name keyword
+- **Usage report** — most-checked-out equipment, activity by holder, currently
+  checked-out list, low-stock summary; exportable as `.txt`
 
 ## Design notes / known simplifications
 

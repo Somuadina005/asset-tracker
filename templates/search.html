@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block title %}Search · Asset Tracker{% endblock %}
+{% block content %}
+
+<div class="page-head">
+  <h1>Search</h1>
+</div>
+
+<div class="panel panel-narrow">
+  <form method="get" class="inline-form">
+    <input type="text" name="q" placeholder="Asset ID or keyword..." value="{{ query }}" autofocus>
+    <button type="submit" class="btn btn-primary">Search</button>
+  </form>
+</div>
+
+{% if query %}
+<div class="panel">
+  <div class="panel-head">
+    {% if results %}{{ results|length }} result(s) for "{{ query }}"{% else %}No matches for "{{ query }}"{% endif %}
+  </div>
+  {% if results %}
+  <table class="asset-table">
+    <thead>
+      <tr><th>ID</th><th>Name</th><th>Category</th><th>Qty</th><th>Status</th><th>Holder</th></tr>
+    </thead>
+    <tbody>
+      {% for a in results %}
+      <tr>
+        <td><a href="{{ url_for('asset_detail', asset_id=a.asset_id) }}" class="tag">{{ a.asset_id }}</a></td>
+        <td>{{ a.name }}</td>
+        <td>{{ a.category or "—" }}</td>
+        <td>{{ a.quantity }}</td>
+        <td><span class="pill {{ 'pill-out' if a.status == 'Checked Out' else 'pill-available' }}">{{ a.status }}</span></td>
+        <td>{{ a.current_holder or "—" }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% endif %}
+</div>
+{% endif %}
+
+{% endblock %}

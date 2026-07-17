@@ -10,7 +10,7 @@ from models import Asset, LogEntry
 
 class Database:
     def __init__(self, db_path="asset_tracker.db"):
-        self.conn = sqlite3.connect(db_path)
+        self.conn = sqlite3.connect(db_path, check_same_thread=False)
         self.conn.execute("PRAGMA foreign_keys = ON")
         self._create_tables()
 

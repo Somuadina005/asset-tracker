@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% block title %}Usage report · Asset Tracker{% endblock %}
+{% block content %}
+
+<div class="page-head">
+  <h1>Usage report</h1>
+  <a href="{{ url_for('report_export') }}" class="btn btn-primary">Export .txt</a>
+</div>
+
+<div class="panel">
+  <pre class="report-block">{{ report_text }}</pre>
+</div>
+
+{% endblock %}

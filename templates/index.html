@@ -1,0 +1,83 @@
+{% extends "base.html" %}
+{% block title %}Dashboard · Asset Tracker{% endblock %}
+{% block content %}
+
+<div class="page-head">
+  <h1>Dashboard</h1>
+  <a href="{{ url_for('add_equipment') }}" class="btn btn-primary">+ Add equipment</a>
+</div>
+
+<div class="stat-row">
+  <div class="stat-card">
+    <div class="stat-num">{{ stats.total }}</div>
+    <div class="stat-label">Total assets</div>
+  </div>
+  <div class="stat-card stat-available">
+    <div class="stat-num">{{ stats.available }}</div>
+    <div class="stat-label">Available</div>
+  </div>
+  <div class="stat-card stat-out">
+    <div class="stat-num">{{ stats.checked_out }}</div>
+    <div class="stat-label">Checked out</div>
+  </div>
+  <div class="stat-card stat-alert">
+    <div class="stat-num">{{ stats.low_stock }}</div>
+    <div class="stat-label">Low stock</div>
+  </div>
+</div>
+
+{% if low_stock %}
+<div class="panel panel-alert">
+  <div class="panel-head">⚠ Low stock alerts</div>
+  <ul class="alert-list">
+    {% for a in low_stock %}
+    <li><a href="{{ url_for('asset_detail', asset_id=a.asset_id) }}" class="tag">{{ a.asset_id }}</a> {{ a.name }} — qty {{ a.quantity }} (threshold {{ a.low_stock_threshold }})</li>
+    {% endfor %}
+  </ul>
+</div>
+{% endif %}
+
+<div class="panel">
+  <div class="panel-head">All equipment</div>
+  {% if assets %}
+  <table class="asset-table">
+    <thead>
+      <tr>
+        <th>ID</th>
+        <th>Name</th>
+        <th>Category</th>
+        <th>Qty</th>
+        <th>Status</th>
+        <th>Holder</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for a in assets %}
+      <tr>
+        <td><a href="{{ url_for('asset_detail', asset_id=a.asset_id) }}" class="tag">{{ a.asset_id }}</a></td>
+        <td>{{ a.name }}</td>
+        <td>{{ a.category or "—" }}</td>
+        <td>{{ a.quantity }}{% if a.is_low_stock() %} <span class="pill pill-alert">low</span>{% endif %}</td>
+        <td><span class="pill {{ 'pill-out' if a.status == 'Checked Out' else 'pill-available' }}">{{ a.status }}</span></td>
+        <td>{{ a.current_holder or "—" }}</td>
+        <td class="action-cell">
+          {% if a.status == "Checked Out" %}
+          <form method="post" action="{{ url_for('check_in', asset_id=a.asset_id) }}">
+            <input type="hidden" name="next" value="{{ url_for('dashboard') }}">
+            <button type="submit" class="btn btn-small">Check in</button>
+          </form>
+          {% else %}
+          <a href="{{ url_for('asset_detail', asset_id=a.asset_id) }}" class="btn btn-small">Check out</a>
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="empty-state">No equipment on file yet. <a href="{{ url_for('add_equipment') }}">Add the first asset</a>.</p>
+  {% endif %}
+</div>
+
+{% endblock %}

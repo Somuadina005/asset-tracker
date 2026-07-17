@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{% block title %}Asset Tracker{% endblock %}</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+<div class="shell">
+  <aside class="sidebar">
+    <div class="brand">
+      <span class="brand-mark">◈</span>
+      <div>
+        <div class="brand-title">ASSET&nbsp;TRACKER</div>
+        <div class="brand-sub">custody &amp; inventory log</div>
+      </div>
+    </div>
+    <nav class="nav">
+      <a href="{{ url_for('dashboard') }}" class="nav-link {{ 'active' if request.endpoint == 'dashboard' }}">
+        <span class="nav-num">01</span> Dashboard
+      </a>
+      <a href="{{ url_for('add_equipment') }}" class="nav-link {{ 'active' if request.endpoint == 'add_equipment' }}">
+        <span class="nav-num">02</span> Add equipment
+      </a>
+      <a href="{{ url_for('search') }}" class="nav-link {{ 'active' if request.endpoint == 'search' }}">
+        <span class="nav-num">03</span> Search
+      </a>
+      <a href="{{ url_for('report') }}" class="nav-link {{ 'active' if request.endpoint in ['report','report_export'] }}">
+        <span class="nav-num">04</span> Usage report
+      </a>
+    </nav>
+    <div class="sidebar-foot">SQLite-backed &middot; Flask</div>
+  </aside>
+
+  <main class="content">
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        <div class="flash-stack">
+        {% for category, message in messages %}
+          <div class="flash flash-{{ category }}">{{ message }}</div>
+        {% endfor %}
+        </div>
+      {% endif %}
+    {% endwith %}
+
+    {% block content %}{% endblock %}
+  </main>
+</div>
+</body>
+</html>

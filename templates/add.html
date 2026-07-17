@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block title %}Add equipment · Asset Tracker{% endblock %}
+{% block content %}
+
+<div class="page-head">
+  <h1>Add new equipment</h1>
+</div>
+
+<div class="panel panel-narrow">
+  <form method="post" class="form-grid">
+    <label>
+      Asset ID
+      <input type="text" name="asset_id" placeholder="LT-001" value="{{ form.asset_id or '' }}" required autofocus>
+    </label>
+    <label>
+      Name
+      <input type="text" name="name" placeholder="Dell Latitude Laptop" value="{{ form.name or '' }}" required>
+    </label>
+    <label>
+      Category
+      <input type="text" name="category" placeholder="Electronics, Medical, Vehicle..." value="{{ form.category or '' }}">
+    </label>
+    <label>
+      Quantity on hand
+      <input type="number" name="quantity" min="0" value="{{ form.quantity or 1 }}">
+    </label>
+    <label>
+      Low-stock threshold
+      <input type="number" name="threshold" min="0" value="{{ form.threshold or 1 }}">
+    </label>
+    <div class="form-actions">
+      <button type="submit" class="btn btn-primary">Add equipment</button>
+      <a href="{{ url_for('dashboard') }}" class="btn">Cancel</a>
+    </div>
+  </form>
+</div>
+
+{% endblock %}

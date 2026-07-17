@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% block title %}{{ asset.asset_id }} · Asset Tracker{% endblock %}
+{% block content %}
+
+<div class="page-head">
+  <h1><span class="tag tag-big">{{ asset.asset_id }}</span> {{ asset.name }}</h1>
+</div>
+
+<div class="detail-grid">
+  <div class="panel">
+    <div class="panel-head">Details</div>
+    <dl class="detail-list">
+      <dt>Category</dt><dd>{{ asset.category or "—" }}</dd>
+      <dt>Quantity</dt><dd>{{ asset.quantity }}{% if asset.is_low_stock() %} <span class="pill pill-alert">low stock</span>{% endif %}</dd>
+      <dt>Status</dt><dd><span class="pill {{ 'pill-out' if asset.status == 'Checked Out' else 'pill-available' }}">{{ asset.status }}</span></dd>
+      <dt>Current holder</dt><dd>{{ asset.current_holder or "—" }}</dd>
+      <dt>Date added</dt><dd>{{ asset.date_added }}</dd>
+    </dl>
+
+    {% if asset.status == "Checked Out" %}
+    <form method="post" action="{{ url_for('check_in', asset_id=asset.asset_id) }}" class="inline-form">
+      <input type="hidden" name="next" value="{{ url_for('asset_detail', asset_id=asset.asset_id) }}">
+      <button type="submit" class="btn btn-primary">Check in</button>
+    </form>
+    {% else %}
+    <form method="post" action="{{ url_for('check_out', asset_id=asset.asset_id) }}" class="inline-form">
+      <input type="hidden" name="next" value="{{ url_for('asset_detail', asset_id=asset.asset_id) }}">
+      <input type="text" name="holder" placeholder="Checking out to..." required>
+      <button type="submit" class="btn btn-primary">Check out</button>
+    </form>
+    {% endif %}
+  </div>
+
+  <div class="panel">
+    <div class="panel-head">History</div>
+    {% if logs %}
+    <ul class="history-list">
+      {% for log in logs %}
+      <li>
+        <span class="pill {{ 'pill-out' if log.action == 'CHECK_OUT' else 'pill-available' }}">{{ log.action.replace('_', ' ') }}</span>
+        {{ log.holder }} <span class="muted">— {{ log.timestamp }}</span>
+      </li>
+      {% endfor %}
+    </ul>
+    {% else %}
+    <p class="empty-state">No history yet for this asset.</p>
+    {% endif %}
+  </div>
+</div>
+
+<a href="{{ url_for('dashboard') }}" class="back-link">← Back to dashboard</a>
+
+{% endblock %}
