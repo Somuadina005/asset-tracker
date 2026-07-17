@@ -62,10 +62,3 @@ is created automatically in the working directory on first run.
   check-out records — a natural "v2" talking point in an interview.
 - No authentication/multi-user layer — intentional for a scoped portfolio
   project; would be the first thing added for a real deployment.
-
-## Possible extensions (good interview talking points)
-
-- Per-unit check-out records for high-quantity assets
-- CSV/Excel export in addition to `.txt` reports
-- REST API wrapper (Flask/FastAPI) reusing the same `AssetTracker` class
-- Role-based access (admin vs. staff) for check-out approval
