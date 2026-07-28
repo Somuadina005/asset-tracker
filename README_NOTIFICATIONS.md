@@ -1,5 +1,26 @@
 # Notification service
 
+## Quick setup (one command)
+
+On the machine where the app actually runs:
+
+```bash
+./scripts/setup_notifications.sh                 # daily at 8am, console/log notifier
+./scripts/setup_notifications.sh --time 07:30     # custom time
+./scripts/setup_notifications.sh --email          # send real email (requires SMTP_* env vars, see below)
+```
+
+This installs a cron entry for you. Re-running it (e.g. to change the time)
+replaces the old entry instead of adding a duplicate. To remove it:
+```bash
+crontab -l | grep -v '# ASSET_TRACKER_NOTIFICATION_SERVICE' | crontab -
+```
+
+Everything below explains what it's doing and how to do it manually /
+with systemd instead, if you'd rather not use the script.
+
+---
+
 `notification_service.py` is a **standalone, decoupled** worker. It does not
 import Flask and the Flask app does not import it — they only share the
 same SQLite file. It has **no AI/ML in it**; it's plain threshold checks and
