@@ -23,6 +23,14 @@ app.secret_key = "asset-tracker-dev-key"  # fine for a local/portfolio demo
 tracker = AssetTracker()
 
 
+@app.context_processor
+def inject_notification_alerts():
+    """Makes open notifications (from notification_service.py's tracking
+    table) available to every template, so the popup can show on any
+    page -- not just the dashboard."""
+    return {"popup_alerts": tracker.get_open_notifications()}
+
+
 @app.route("/")
 def dashboard():
     assets = tracker.list_all_assets()

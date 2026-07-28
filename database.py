@@ -97,6 +97,22 @@ class Database:
         )
         return cur.fetchall()
 
+    def get_open_notifications_with_details(self):
+        """Open notifications joined with the asset's current name/qty,
+        for display in the web UI (e.g. a popup/banner)."""
+        cur = self.conn.execute("""
+            SELECT n.notif_id, n.asset_id, n.first_detected_at, n.last_notified_at,
+                   n.times_notified, n.escalation_level,
+                   a.name, a.quantity, a.low_stock_threshold
+            FROM notification_log n
+            JOIN assets a ON a.asset_id = n.asset_id
+            WHERE n.resolved_at IS NULL
+            ORDER BY n.first_detected_at
+        """)
+        cols = ["notif_id", "asset_id", "first_detected_at", "last_notified_at",
+                "times_notified", "escalation_level", "name", "quantity", "threshold"]
+        return [dict(zip(cols, row)) for row in cur.fetchall()]
+
     # ---------- Asset CRUD ----------
 
     def add_asset(self, asset: Asset):

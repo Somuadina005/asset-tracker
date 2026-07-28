@@ -52,5 +52,42 @@
     {% block content %}{% endblock %}
   </main>
 </div>
+
+{% if popup_alerts %}
+<div id="notif-popup" class="notif-popup" data-fingerprint="{{ popup_alerts|map(attribute='notif_id')|join(',') }}-{{ popup_alerts|map(attribute='times_notified')|join(',') }}">
+  <div class="notif-popup-head">
+    <span>⚠ {{ popup_alerts|length }} open low-stock notification{{ 's' if popup_alerts|length != 1 }}</span>
+    <button type="button" class="notif-popup-close" onclick="dismissNotifPopup()">&times;</button>
+  </div>
+  <ul class="notif-popup-list">
+    {% for n in popup_alerts %}
+    <li>
+      <strong>{{ n.name }}</strong> ({{ n.asset_id }}) — {{ n.quantity }}/{{ n.threshold }} threshold.
+      Reminded {{ n.times_notified }}x since {{ n.first_detected_at.split(' ')[0] }}.
+    </li>
+    {% endfor %}
+  </ul>
+  <a href="{{ url_for('dashboard') }}" class="notif-popup-link">View on dashboard →</a>
+</div>
+<script>
+  (function () {
+    var popup = document.getElementById('notif-popup');
+    if (!popup) return;
+    var fingerprint = popup.getAttribute('data-fingerprint');
+    // Only pop up once per browser session per distinct set of open
+    // notifications -- if the operator dismisses it, it won't nag them
+    // on every page click. If a NEW notification fires (different
+    // fingerprint) it shows again even in the same session.
+    if (sessionStorage.getItem('dismissedNotifFingerprint') === fingerprint) {
+      popup.style.display = 'none';
+    }
+    window.dismissNotifPopup = function () {
+      sessionStorage.setItem('dismissedNotifFingerprint', fingerprint);
+      popup.style.display = 'none';
+    };
+  })();
+</script>
+{% endif %}
+
 </body>
 </html>

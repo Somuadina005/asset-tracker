@@ -133,6 +133,56 @@ h1 {
 .flash-success { background: #E8F0E4; border-color: var(--moss); color: #375330; }
 .flash-error { background: #F7E4DB; border-color: var(--rust); color: #8A3208; }
 
+/* Notification popup (open low-stock alerts from notification_service.py) */
+.notif-popup {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  width: 320px;
+  max-height: 60vh;
+  overflow-y: auto;
+  background: #FFFDF9;
+  border: 1px solid var(--rust);
+  border-left: 4px solid var(--rust);
+  border-radius: var(--radius);
+  box-shadow: 0 8px 24px rgba(0,0,0,0.18);
+  z-index: 1000;
+  animation: notif-pop-in 0.25s ease-out;
+}
+@keyframes notif-pop-in {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.notif-popup-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 12px;
+  font-weight: 600;
+  font-size: 13.5px;
+  color: #8A3208;
+  border-bottom: 1px solid #eee;
+}
+.notif-popup-close {
+  background: none;
+  border: none;
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+  color: #8A3208;
+}
+.notif-popup-list { list-style: none; margin: 0; padding: 8px 12px; font-size: 12.5px; }
+.notif-popup-list li { padding: 6px 0; border-bottom: 1px dashed #eee; }
+.notif-popup-list li:last-child { border-bottom: none; }
+.notif-popup-link {
+  display: block;
+  text-align: center;
+  padding: 8px;
+  font-size: 12.5px;
+  font-weight: 600;
+  border-top: 1px solid #eee;
+}
+
 /* Stat cards */
 .stat-row {
   display: grid;

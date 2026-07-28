@@ -80,6 +80,12 @@ class AssetTracker:
     def get_low_stock_alerts(self):
         return self.db.get_low_stock_assets()
 
+    def get_open_notifications(self):
+        """Notifications the background notification_service.py has flagged
+        as unresolved -- includes how long they've been open and how many
+        times the operator was already reminded."""
+        return self.db.get_open_notifications_with_details()
+
     # ---------- Listing ----------
 
     def list_all_assets(self):
