@@ -102,7 +102,7 @@ class Database:
         for display in the web UI (e.g. a popup/banner)."""
         cur = self.conn.execute("""
             SELECT n.notif_id, n.asset_id, n.first_detected_at, n.last_notified_at,
-                   n.times_notified, n.escalation_level,
+                   n.times_notified, n.escalation_level, n.resolved_at,
                    a.name, a.quantity, a.low_stock_threshold
             FROM notification_log n
             JOIN assets a ON a.asset_id = n.asset_id
@@ -110,7 +110,25 @@ class Database:
             ORDER BY n.first_detected_at
         """)
         cols = ["notif_id", "asset_id", "first_detected_at", "last_notified_at",
-                "times_notified", "escalation_level", "name", "quantity", "threshold"]
+                "times_notified", "escalation_level", "resolved_at",
+                "name", "quantity", "threshold"]
+        return [dict(zip(cols, row)) for row in cur.fetchall()]
+
+    def get_notification_history(self, limit=100):
+        """Every notification, open or resolved, most recent activity first.
+        Powers the full notification center page."""
+        cur = self.conn.execute("""
+            SELECT n.notif_id, n.asset_id, n.first_detected_at, n.last_notified_at,
+                   n.times_notified, n.escalation_level, n.resolved_at,
+                   a.name, a.quantity, a.low_stock_threshold
+            FROM notification_log n
+            JOIN assets a ON a.asset_id = n.asset_id
+            ORDER BY n.last_notified_at DESC
+            LIMIT ?
+        """, (limit,))
+        cols = ["notif_id", "asset_id", "first_detected_at", "last_notified_at",
+                "times_notified", "escalation_level", "resolved_at",
+                "name", "quantity", "threshold"]
         return [dict(zip(cols, row)) for row in cur.fetchall()]
 
     # ---------- Asset CRUD ----------

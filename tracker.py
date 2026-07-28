@@ -86,6 +86,10 @@ class AssetTracker:
         times the operator was already reminded."""
         return self.db.get_open_notifications_with_details()
 
+    def get_notification_history(self, limit=100):
+        """Full notification center feed: open + resolved, most recent first."""
+        return self.db.get_notification_history(limit=limit)
+
     # ---------- Listing ----------
 
     def list_all_assets(self):

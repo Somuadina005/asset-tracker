@@ -131,6 +131,12 @@ def report_export():
     )
 
 
+@app.route("/notifications")
+def notifications():
+    history = tracker.get_notification_history()
+    return render_template("notifications.html", history=history)
+
+
 @app.route("/chatbot", methods=["GET", "POST"])
 def chatbot_page():
     answer = None

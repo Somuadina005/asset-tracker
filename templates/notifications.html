@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% block title %}Notifications · Asset Tracker{% endblock %}
+{% block content %}
+
+<div class="page-head">
+  <h1>Notifications</h1>
+</div>
+
+<div class="panel">
+  <div class="panel-head">
+    {% if history %}{{ history|length }} notification(s){% else %}No notifications yet{% endif %}
+  </div>
+  {% if history %}
+  <table class="asset-table">
+    <thead>
+      <tr>
+        <th>Status</th>
+        <th>Asset</th>
+        <th>Qty / Threshold</th>
+        <th>First detected</th>
+        <th>Last notified</th>
+        <th>Times reminded</th>
+        <th>Resolved</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for n in history %}
+      <tr>
+        <td>
+          {% if n.resolved_at %}
+          <span class="pill pill-available">Resolved</span>
+          {% else %}
+          <span class="pill pill-alert">Open</span>
+          {% endif %}
+        </td>
+        <td><a href="{{ url_for('asset_detail', asset_id=n.asset_id) }}" class="tag">{{ n.asset_id }}</a> {{ n.name }}</td>
+        <td>{{ n.quantity }} / {{ n.threshold }}</td>
+        <td>{{ n.first_detected_at }}</td>
+        <td>{{ n.last_notified_at }}</td>
+        <td>{{ n.times_notified }}</td>
+        <td>{{ n.resolved_at or "—" }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="empty-state">Nothing here yet. The notification service writes here once it flags a low-stock item — see README_NOTIFICATIONS.md to set it up.</p>
+  {% endif %}
+</div>
+
+{% endblock %}

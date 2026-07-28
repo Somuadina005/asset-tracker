@@ -17,6 +17,28 @@
         <div class="brand-title">ASSET&nbsp;TRACKER</div>
         <div class="brand-sub">custody &amp; inventory log</div>
       </div>
+      <div class="notif-bell-wrap">
+        <button type="button" class="notif-bell" onclick="toggleNotifCenter()" aria-label="Notifications">
+          🔔
+          {% if popup_alerts %}<span class="notif-badge">{{ popup_alerts|length }}</span>{% endif %}
+        </button>
+        <div id="notif-center" class="notif-center">
+          <div class="notif-center-head">Open notifications</div>
+          {% if popup_alerts %}
+          <ul class="notif-center-list">
+            {% for n in popup_alerts %}
+            <li>
+              <strong>{{ n.name }}</strong> ({{ n.asset_id }})<br>
+              {{ n.quantity }}/{{ n.threshold }} threshold · reminded {{ n.times_notified }}x since {{ n.first_detected_at.split(' ')[0] }}
+            </li>
+            {% endfor %}
+          </ul>
+          {% else %}
+          <div class="notif-center-empty">Nothing open right now.</div>
+          {% endif %}
+          <a href="{{ url_for('notifications') }}" class="notif-center-link">View all notifications →</a>
+        </div>
+      </div>
     </div>
     <nav class="nav">
       <a href="{{ url_for('dashboard') }}" class="nav-link {{ 'active' if request.endpoint == 'dashboard' }}">
@@ -33,6 +55,9 @@
       </a>
       <a href="{{ url_for('chatbot_page') }}" class="nav-link {{ 'active' if request.endpoint == 'chatbot_page' }}">
         <span class="nav-num">05</span> Assistant
+      </a>
+      <a href="{{ url_for('notifications') }}" class="nav-link {{ 'active' if request.endpoint == 'notifications' }}">
+        <span class="nav-num">06</span> Notifications
       </a>
     </nav>
     <div class="sidebar-foot">SQLite-backed &middot; Flask</div>
@@ -53,41 +78,20 @@
   </main>
 </div>
 
-{% if popup_alerts %}
-<div id="notif-popup" class="notif-popup" data-fingerprint="{{ popup_alerts|map(attribute='notif_id')|join(',') }}-{{ popup_alerts|map(attribute='times_notified')|join(',') }}">
-  <div class="notif-popup-head">
-    <span>⚠ {{ popup_alerts|length }} open low-stock notification{{ 's' if popup_alerts|length != 1 }}</span>
-    <button type="button" class="notif-popup-close" onclick="dismissNotifPopup()">&times;</button>
-  </div>
-  <ul class="notif-popup-list">
-    {% for n in popup_alerts %}
-    <li>
-      <strong>{{ n.name }}</strong> ({{ n.asset_id }}) — {{ n.quantity }}/{{ n.threshold }} threshold.
-      Reminded {{ n.times_notified }}x since {{ n.first_detected_at.split(' ')[0] }}.
-    </li>
-    {% endfor %}
-  </ul>
-  <a href="{{ url_for('dashboard') }}" class="notif-popup-link">View on dashboard →</a>
-</div>
 <script>
-  (function () {
-    var popup = document.getElementById('notif-popup');
-    if (!popup) return;
-    var fingerprint = popup.getAttribute('data-fingerprint');
-    // Only pop up once per browser session per distinct set of open
-    // notifications -- if the operator dismisses it, it won't nag them
-    // on every page click. If a NEW notification fires (different
-    // fingerprint) it shows again even in the same session.
-    if (sessionStorage.getItem('dismissedNotifFingerprint') === fingerprint) {
-      popup.style.display = 'none';
+  function toggleNotifCenter() {
+    var el = document.getElementById('notif-center');
+    el.classList.toggle('open');
+  }
+  // Close the dropdown if you click anywhere outside it.
+  document.addEventListener('click', function (e) {
+    var wrap = document.querySelector('.notif-bell-wrap');
+    var center = document.getElementById('notif-center');
+    if (wrap && center && !wrap.contains(e.target)) {
+      center.classList.remove('open');
     }
-    window.dismissNotifPopup = function () {
-      sessionStorage.setItem('dismissedNotifFingerprint', fingerprint);
-      popup.style.display = 'none';
-    };
-  })();
+  });
 </script>
-{% endif %}
 
 </body>
 </html>
