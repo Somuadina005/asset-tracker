@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block title %}Assistant · Asset Tracker{% endblock %}
+{% block content %}
+
+<div class="page-head">
+  <h1>Assistant</h1>
+</div>
+
+{% if not configured %}
+<div class="panel panel-narrow">
+  <div class="flash flash-error">
+    AI assistant isn't configured. Set the ANTHROPIC_API_KEY environment
+    variable on the server to enable it.
+  </div>
+</div>
+{% endif %}
+
+<div class="panel panel-narrow">
+  <form method="post" class="inline-form">
+    <input type="text" name="question" placeholder="e.g. What's low on stock right now?" value="{{ question }}" autofocus>
+    <button type="submit" class="btn btn-primary" {{ 'disabled' if not configured }}>Ask</button>
+  </form>
+</div>
+
+{% if answer %}
+<div class="panel">
+  <div class="panel-head">Answer</div>
+  <p>{{ answer }}</p>
+</div>
+{% endif %}
+
+{% endblock %}

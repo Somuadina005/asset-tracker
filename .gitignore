@@ -3,3 +3,4 @@ __pycache__/
 *.db
 usage_report.txt
 .DS_Store
+notifications.log

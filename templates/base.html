@@ -31,6 +31,9 @@
       <a href="{{ url_for('report') }}" class="nav-link {{ 'active' if request.endpoint in ['report','report_export'] }}">
         <span class="nav-num">04</span> Usage report
       </a>
+      <a href="{{ url_for('chatbot_page') }}" class="nav-link {{ 'active' if request.endpoint == 'chatbot_page' }}">
+        <span class="nav-num">05</span> Assistant
+      </a>
     </nav>
     <div class="sidebar-foot">SQLite-backed &middot; Flask</div>
   </aside>

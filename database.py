@@ -37,7 +37,65 @@ class Database:
                 FOREIGN KEY (asset_id) REFERENCES assets(asset_id)
             )
         """)
+        # Tracks the notification state for each asset that is currently
+        # (or was recently) below its low-stock threshold. One open row
+        # per asset at a time -- this is what lets the notification
+        # service avoid re-alerting the operator every single day.
+        self.conn.execute("""
+            CREATE TABLE IF NOT EXISTS notification_log (
+                notif_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                asset_id TEXT NOT NULL,
+                first_detected_at TEXT NOT NULL,
+                last_notified_at TEXT NOT NULL,
+                times_notified INTEGER NOT NULL DEFAULT 1,
+                escalation_level INTEGER NOT NULL DEFAULT 0,
+                resolved_at TEXT,
+                FOREIGN KEY (asset_id) REFERENCES assets(asset_id)
+            )
+        """)
         self.conn.commit()
+
+    # ---------- Notification log ----------
+
+    def get_open_notification(self, asset_id):
+        """The unresolved notification row for this asset, if any."""
+        cur = self.conn.execute(
+            "SELECT * FROM notification_log WHERE asset_id = ? AND resolved_at IS NULL",
+            (asset_id,)
+        )
+        return cur.fetchone()
+
+    def open_notification(self, asset_id, detected_at):
+        self.conn.execute(
+            """INSERT INTO notification_log
+               (asset_id, first_detected_at, last_notified_at, times_notified, escalation_level)
+               VALUES (?, ?, ?, 1, 0)""",
+            (asset_id, detected_at, detected_at)
+        )
+        self.conn.commit()
+
+    def record_reminder(self, notif_id, notified_at, escalation_level):
+        self.conn.execute(
+            """UPDATE notification_log
+               SET last_notified_at = ?, times_notified = times_notified + 1,
+                   escalation_level = ?
+               WHERE notif_id = ?""",
+            (notified_at, escalation_level, notif_id)
+        )
+        self.conn.commit()
+
+    def resolve_notification(self, notif_id, resolved_at):
+        self.conn.execute(
+            "UPDATE notification_log SET resolved_at = ? WHERE notif_id = ?",
+            (resolved_at, notif_id)
+        )
+        self.conn.commit()
+
+    def get_all_open_notifications(self):
+        cur = self.conn.execute(
+            "SELECT * FROM notification_log WHERE resolved_at IS NULL ORDER BY asset_id"
+        )
+        return cur.fetchall()
 
     # ---------- Asset CRUD ----------
 

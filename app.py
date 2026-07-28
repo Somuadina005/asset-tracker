@@ -15,6 +15,7 @@ from flask import Flask, render_template, request, redirect, url_for, flash, Res
 
 from tracker import AssetTracker
 from reports import build_usage_report, export_report
+import chatbot
 
 app = Flask(__name__)
 app.secret_key = "asset-tracker-dev-key"  # fine for a local/portfolio demo
@@ -119,6 +120,22 @@ def report_export():
         report_text,
         mimetype="text/plain",
         headers={"Content-Disposition": "attachment; filename=usage_report.txt"},
+    )
+
+
+@app.route("/chatbot", methods=["GET", "POST"])
+def chatbot_page():
+    answer = None
+    question = ""
+    if request.method == "POST":
+        question = request.form.get("question", "").strip()
+        if question:
+            answer = chatbot.ask(tracker, question)
+    return render_template(
+        "chatbot.html",
+        question=question,
+        answer=answer,
+        configured=chatbot.is_configured(),
     )
 
 
