@@ -1,116 +1,132 @@
-# Asset Tracking System
+# Autonomous Drone Mission Planner
 
-A Python asset/equipment tracking system with SQLite persistence, available as
-both a command-line tool and a Flask web app. Models the core workflow
-companies, hospitals, and organizations use to track equipment check-out/check-in,
-ownership, and inventory levels.
+A 2D autonomous mission planner that routes a drone through multiple
+waypoints across a grid with static obstacles and no-fly zones, using
+A* search, and dynamically **replans** if a new obstacle appears mid-flight.
+
+![Mission Plan](mission_plan.png)
 
 ## Features
 
-- **Add equipment** — register new assets with ID, name, category, quantity, and low-stock threshold
-- **Check equipment in/out** — enforces rules (can't double-check-out, can't check in what's already in)
-- **Track current holder** — always know who has what
-- **Low inventory alerts** — flags assets at or below their configured threshold
-- **Search by ID or name** — quick lookup, partial-match name search
-- **Usage reports** — most-checked-out equipment, activity by holder, currently checked-out list,
-  and low-stock summary; exportable to a `.txt` file
-- **AI Asset Copilot** — natural-language Q&A over the inventory (replacements, low stock,
-  department/warranty breakdowns, purchase suggestions); see `ai_service.py`
-- **Predictive Asset Health Score** — a scikit-learn model scores every asset 0–100
-  (Healthy / Monitor / Replace Soon) from age, checkout frequency, repair history, and
-  warranty status, with an auto-generated recommendation; see `health_score_service.py`
+- 2D grid map with configurable width/height
+- Static obstacles and rectangular no-fly zones
+- A* pathfinding with 4- or 8-connectivity (diagonal movement)
+- Admissible heuristics: Manhattan, Euclidean, and Octile distance
+- Multi-waypoint missions (start → wp1 → wp2 → ... → goal), stitched
+  from consecutive A* legs
+- Dynamic replanning: when a new obstacle appears, the planner re-routes
+  from the drone's current position to its remaining waypoints, without
+  re-flying completed legs
+- Matplotlib visualization of the grid, route, and before/after replanning
 
-## Concepts demonstrated
-
-| Concept       | Where                                                             |
-|---------------|--------------------------------------------------------------------|
-| OOP / Classes | `Asset`, `LogEntry`, `Database`, `AssetTracker`                   |
-| File I/O      | SQLite database file (`asset_tracker.db`), text report export     |
-| SQLite        | `database.py` — all persistence isolated from business logic      |
-| Dictionaries (maps) | `reports.py` uses `Counter`/`defaultdict` to aggregate usage |
-| Searching     | Exact ID lookup and `LIKE`-based keyword search                   |
-
-## Architecture
+## Project structure
 
 ```
-asset_tracker/
-├── models.py         # Asset & LogEntry data classes
-├── database.py       # SQLite persistence layer (all SQL lives here)
-├── tracker.py         # AssetTracker — business rules, the layer any UI talks to
-├── reports.py         # Usage report generation/aggregation
-├── ai_service.py       # AIService — builds inventory context, calls the Anthropic API
-├── chatbot.py          # Thin adapter: app.py's existing ask()/is_configured() -> AIService
-├── health_score_service.py  # scikit-learn health-score model (isolated, its own module)
-├── main.py            # CLI menu — entry point
-├── app.py              # Flask web app — entry point
-├── templates/          # Jinja2 templates for the web UI
-├── static/style.css    # Web UI styling
+drone_mission_planner/
+├── grid.py              # Grid: obstacles, no-fly zones, neighbor generation
+├── astar.py             # A* search + heuristics
+├── planner.py           # MissionPlanner: multi-waypoint routing + replanning
+├── visualize.py          # matplotlib rendering
+├── main.py               # runnable demo
+├── test_planner.py       # unit tests
+├── requirements.txt
 └── README.md
 ```
 
-This is a layered design on purpose: neither `main.py` (CLI) nor `app.py` (web)
-touch SQL directly, `tracker.py` (business logic) doesn't know which UI is
-calling it, and `database.py` never enforces rules — it just persists what
-it's told. That separation is what let the web UI get added later (`app.py`)
-without changing a single line of `tracker.py`, `database.py`, or `models.py`
-— and what let the AI Copilot and health-score model get added as new,
-self-contained service modules (`ai_service.py`, `health_score_service.py`)
-without touching that same core.
-
-## How to run
-
-### Command line
+## Getting started
 
 ```bash
-cd asset_tracker
-python3 main.py
-```
-
-No external dependencies — uses only the Python standard library
-(`sqlite3`, `collections`, `datetime`). A database file `asset_tracker.db`
-is created automatically in the working directory on first run.
-
-### Web app
-
-```bash
-cd asset_tracker
+python3 -m venv venv
+source venv/bin/activate        # on Windows: venv\Scripts\activate
 pip install -r requirements.txt
-python3 app.py
+
+python3 main.py                 # runs the demo, saves two PNGs
+python3 -m unittest test_planner.py -v   # run tests
 ```
 
-Then open **http://127.0.0.1:5000**. Requires Flask (see `requirements.txt`);
-everything else is still standard library. The web app reuses `tracker.py`,
-`database.py`, `models.py`, and `reports.py` exactly as-is — it's a thin
-Flask + Jinja2 layer on top of the same business logic the CLI uses, sharing
-the same `asset_tracker.db` file.
+## Example output
 
-**Web UI pages:**
-- **Dashboard** — live stats (including health-score summary), low-stock alerts,
-  full equipment table with health scores and inline check-in
-- **Add equipment** — register new assets, with optional department/purchase
-  date/warranty/maintenance/repair fields that feed the health score
-- **Asset detail** — per-asset check-out/check-in, predicted health score +
-  recommendation, and full history
-- **Search** — by Asset ID or name keyword
-- **Usage report** — most-checked-out equipment, activity by holder, currently
-  checked-out list, low-stock summary; exportable as `.txt`
-- **AI Asset Copilot** (`/chatbot`) — ask natural-language questions about the
-  inventory. Requires an `ANTHROPIC_API_KEY` environment variable; without it,
-  the page still loads but explains the assistant isn't configured instead of
-  crashing.
+Running `main.py` produces:
 
-Health scores are computed by `health_score_service.py` (scikit-learn) and
-cached in the database; the dashboard auto-scores any never-scored asset, and
-a "Recalculate health scores" button refreshes everything after repairs/
-maintenance are logged.
+- `mission_plan.png` — the initial multi-waypoint route
+- `mission_replan_comparison.png` — side-by-side comparison of the
+  original plan vs. the route after a new obstacle is detected mid-flight
 
-## Design notes / known simplifications
+## Concepts
 
-- Each asset has **one** `status`/`current_holder` field even if `quantity > 1`.
-  Checking out decrements quantity and marks the asset "Checked Out" once any
-  unit is out — this matches "who currently has custody" tracking for
-  single/small-quantity items (laptops, sensors, vehicles). For high-quantity
-  consumables (e.g. 50 hard hats), you'd extend this to per-unit or bulk
-  check-out records — a natural "v2" talking point in an interview.
-- No authentication/multi-user layer — intentional for a scoped portfolio
-  project; would be the first thing added for a real deployment.
+### Graph theory
+
+The grid is treated as an implicit graph: every free cell is a node, and
+edges connect a cell to its walkable neighbors (4 or 8 per cell depending
+on whether diagonal movement is allowed). Obstacles and no-fly zones are
+simply cells with no outgoing/incoming edges — they're never generated by
+`Grid.neighbors()`, so the search can never expand into them. This is the
+same abstraction used for road networks, circuit routing, and network
+topology — anywhere you need the shortest path through a constrained space.
+
+### A* search
+
+A* is a best-first search that expands nodes in order of:
+
+```
+f(n) = g(n) + h(n)
+```
+
+- `g(n)` — the exact cost from the start to node `n` (known so far)
+- `h(n)` — a heuristic *estimate* of the remaining cost from `n` to the goal
+
+Dijkstra's algorithm is the special case `h(n) = 0`: it explores uniformly
+in all directions with no sense of where the goal is. A* uses `h(n)` to bias
+the search toward the goal, which is why it typically expands far fewer
+nodes than Dijkstra on the same graph — this project's demo prints
+`nodes_expanded` for exactly this reason, so you can see the pruning effect.
+
+### Heuristics
+
+For a heuristic to guarantee an optimal path, it must be **admissible**
+(never overestimate the true remaining cost). This project implements three:
+
+| Heuristic  | Best for              | Formula |
+|------------|------------------------|---------|
+| Manhattan  | 4-connectivity (no diagonals) | `\|dx\| + \|dy\|` |
+| Euclidean  | 8-connectivity, straight-line estimate | `sqrt(dx² + dy²)` |
+| Octile     | 8-connectivity, tighter bound | `(dx+dy) + (√2 - 2)·min(dx,dy)` |
+
+Octile distance is tighter than Euclidean when diagonal moves cost `√2`
+and straight moves cost `1` — it's the "exact" cost of an obstacle-free
+diagonal grid, so it prunes more aggressively than Euclidean while
+remaining admissible.
+
+### Time complexity
+
+With a binary-heap priority queue, A* runs in `O(E log V)` in the worst
+case, where `V` is the number of free cells and `E` is the number of edges
+(≈4–8 per cell for a grid). The heuristic doesn't change this worst-case
+bound, but in practice a good heuristic dramatically reduces the number of
+nodes actually expanded before reaching the goal — that pruning, not the
+big-O bound, is the real-world payoff of using A* over Dijkstra.
+
+### Path optimization
+
+A few directions this project leaves room to extend:
+
+- **Waypoint ordering** — this planner visits waypoints in the order
+  given. Finding the *optimal visiting order* is a Traveling Salesman
+  Problem (NP-hard); for a handful of waypoints, brute-force or
+  nearest-neighbor heuristics are practical additions.
+- **Path smoothing** — A* on a grid produces axis/diagonal-aligned
+  paths; a real drone would want post-processing (e.g. line-of-sight
+  shortcutting, or splines) to smooth those into flyable trajectories.
+- **True dynamic replanning** — this project re-runs A* from scratch on
+  detecting an obstacle, which is simple and correct but not the most
+  efficient option. Incremental algorithms like **D\*** or **D\* Lite**
+  reuse prior search information instead of recomputing everything,
+  which matters more as the grid grows large or obstacles change
+  frequently.
+- **3D and kinodynamic constraints** — real drones have turn radius,
+  altitude, and battery constraints; extending the grid to 3D and the
+  cost function to reflect vehicle dynamics is the natural next step.
+
+## License
+
+MIT
