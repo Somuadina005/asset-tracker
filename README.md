@@ -14,6 +14,11 @@ ownership, and inventory levels.
 - **Search by ID or name** — quick lookup, partial-match name search
 - **Usage reports** — most-checked-out equipment, activity by holder, currently checked-out list,
   and low-stock summary; exportable to a `.txt` file
+- **AI Asset Copilot** — natural-language Q&A over the inventory (replacements, low stock,
+  department/warranty breakdowns, purchase suggestions); see `ai_service.py`
+- **Predictive Asset Health Score** — a scikit-learn model scores every asset 0–100
+  (Healthy / Monitor / Replace Soon) from age, checkout frequency, repair history, and
+  warranty status, with an auto-generated recommendation; see `health_score_service.py`
 
 ## Concepts demonstrated
 
@@ -33,6 +38,9 @@ asset_tracker/
 ├── database.py       # SQLite persistence layer (all SQL lives here)
 ├── tracker.py         # AssetTracker — business rules, the layer any UI talks to
 ├── reports.py         # Usage report generation/aggregation
+├── ai_service.py       # AIService — builds inventory context, calls the Anthropic API
+├── chatbot.py          # Thin adapter: app.py's existing ask()/is_configured() -> AIService
+├── health_score_service.py  # scikit-learn health-score model (isolated, its own module)
 ├── main.py            # CLI menu — entry point
 ├── app.py              # Flask web app — entry point
 ├── templates/          # Jinja2 templates for the web UI
@@ -44,7 +52,10 @@ This is a layered design on purpose: neither `main.py` (CLI) nor `app.py` (web)
 touch SQL directly, `tracker.py` (business logic) doesn't know which UI is
 calling it, and `database.py` never enforces rules — it just persists what
 it's told. That separation is what let the web UI get added later (`app.py`)
-without changing a single line of `tracker.py`, `database.py`, or `models.py`.
+without changing a single line of `tracker.py`, `database.py`, or `models.py`
+— and what let the AI Copilot and health-score model get added as new,
+self-contained service modules (`ai_service.py`, `health_score_service.py`)
+without touching that same core.
 
 ## How to run
 
@@ -74,12 +85,24 @@ Flask + Jinja2 layer on top of the same business logic the CLI uses, sharing
 the same `asset_tracker.db` file.
 
 **Web UI pages:**
-- **Dashboard** — live stats, low-stock alerts, full equipment table with inline check-in
-- **Add equipment** — register new assets
-- **Asset detail** — per-asset check-out/check-in and full history
+- **Dashboard** — live stats (including health-score summary), low-stock alerts,
+  full equipment table with health scores and inline check-in
+- **Add equipment** — register new assets, with optional department/purchase
+  date/warranty/maintenance/repair fields that feed the health score
+- **Asset detail** — per-asset check-out/check-in, predicted health score +
+  recommendation, and full history
 - **Search** — by Asset ID or name keyword
 - **Usage report** — most-checked-out equipment, activity by holder, currently
   checked-out list, low-stock summary; exportable as `.txt`
+- **AI Asset Copilot** (`/chatbot`) — ask natural-language questions about the
+  inventory. Requires an `ANTHROPIC_API_KEY` environment variable; without it,
+  the page still loads but explains the assistant isn't configured instead of
+  crashing.
+
+Health scores are computed by `health_score_service.py` (scikit-learn) and
+cached in the database; the dashboard auto-scores any never-scored asset, and
+a "Recalculate health scores" button refreshes everything after repairs/
+maintenance are logged.
 
 ## Design notes / known simplifications
 

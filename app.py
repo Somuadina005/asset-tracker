@@ -11,14 +11,29 @@ the README calls out. Run with:
 Then visit http://130.0.0.1:5000
 """
 
-from flask import Flask, render_template, request, redirect, url_for, flash, Response
+from flask import Flask, render_template, request, redirect, url_for, flash, Response, send_from_directory
 
 from tracker import AssetTracker
 from reports import build_usage_report, export_report
 import chatbot
+import health_score_service
 
-app = Flask(__name__)
+app = Flask(
+    __name__,
+    template_folder=".",  # all files now live in one flat folder --
+    static_folder=None,   # templates sit alongside the .py files instead
+)                          # of in templates/ and static/ subfolders
 app.secret_key = "asset-tracker-dev-key"  # fine for a local/portfolio demo
+
+
+@app.route("/static/style.css")
+def style_css():
+    # Flask's default static route serves *any* file in its static folder --
+    # with everything flattened into one directory, that would mean
+    # app.py, database.py, and even asset_tracker.db become downloadable
+    # over HTTP. So static_folder is disabled above, and only this one
+    # file is exposed, explicitly, instead.
+    return send_from_directory(".", "style.css", mimetype="text/css")
 
 tracker = AssetTracker()
 
@@ -34,22 +49,45 @@ def inject_notification_alerts():
 @app.route("/")
 def dashboard():
     assets = tracker.list_all_assets()
+
+    # Lazily score any asset that has never been through the health-score
+    # model yet (e.g. right after it's added), so the dashboard always
+    # shows a score without requiring a manual "Recalculate" click first.
+    # A full manual recalculation is still available via /health/recalculate
+    # for refreshing scores after checkouts, repairs, etc.
+    if any(a.health_score is None for a in assets):
+        health_score_service.recalculate_all(tracker)
+        assets = tracker.list_all_assets()
+
     low_stock = tracker.get_low_stock_alerts()
     checked_out = [a for a in assets if a.status == "Checked Out"]
+    replace_soon = [a for a in assets if a.health_status == "Replace Soon"]
 
     stats = {
         "total": len(assets),
         "available": len(assets) - len(checked_out),
         "checked_out": len(checked_out),
         "low_stock": len(low_stock),
+        "replace_soon": len(replace_soon),
     }
 
     return render_template(
         "index.html",
         assets=assets,
         low_stock=low_stock,
+        replace_soon=replace_soon,
         stats=stats,
     )
+
+
+@app.route("/health/recalculate", methods=["POST"])
+def recalculate_health():
+    """Manually refresh every asset's health score -- useful after logging
+    repairs/maintenance or checkouts that should shift the score."""
+    results = health_score_service.recalculate_all(tracker)
+    flagged = sum(1 for r in results if r["status"] != "Healthy")
+    flash(f"Recalculated health scores for {len(results)} asset(s) -- {flagged} need attention.", "success")
+    return redirect(request.form.get("next") or url_for("dashboard"))
 
 
 @app.route("/add", methods=["GET", "POST"])
@@ -60,15 +98,28 @@ def add_equipment():
         category = request.form.get("category", "")
         quantity = request.form.get("quantity", "1")
         threshold = request.form.get("threshold", "1")
+        # Optional -- feed the health-score model and let the AI copilot
+        # answer department/warranty-aware questions. Blank is fine.
+        department = request.form.get("department", "").strip() or None
+        purchase_date = request.form.get("purchase_date", "").strip() or None
+        warranty_expiration = request.form.get("warranty_expiration", "").strip() or None
+        last_maintenance_date = request.form.get("last_maintenance_date", "").strip() or None
+        repair_count = request.form.get("repair_count", "0")
 
         try:
             quantity = int(quantity)
             threshold = int(threshold)
+            repair_count = int(repair_count) if repair_count else 0
         except ValueError:
-            flash("Quantity and threshold must be whole numbers.", "error")
+            flash("Quantity, threshold, and repair count must be whole numbers.", "error")
             return render_template("add.html", form=request.form)
 
-        ok, msg = tracker.add_equipment(asset_id, name, category, quantity, threshold)
+        ok, msg = tracker.add_equipment(
+            asset_id, name, category, quantity, threshold,
+            department=department, purchase_date=purchase_date,
+            warranty_expiration=warranty_expiration,
+            last_maintenance_date=last_maintenance_date, repair_count=repair_count,
+        )
         flash(msg, "success" if ok else "error")
         if ok:
             return redirect(url_for("dashboard"))

@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+{% block title %}Add equipment · Asset Tracker{% endblock %}
+{% block content %}
+
+<div class="page-head">
+  <h1>Add new equipment</h1>
+</div>
+<p class="muted" style="margin-top:-10px; margin-bottom:16px; font-size:13px;">
+  Department, warranty, maintenance, and repair fields are optional -- filling them in
+  gives the predicted health score and the AI assistant more to work with.
+</p>
+
+<div class="panel panel-narrow">
+  <form method="post" class="form-grid">
+    <label>
+      Asset ID
+      <input type="text" name="asset_id" placeholder="LT-001" value="{{ form.asset_id or '' }}" required autofocus>
+    </label>
+    <label>
+      Name
+      <input type="text" name="name" placeholder="Dell Latitude Laptop" value="{{ form.name or '' }}" required>
+    </label>
+    <label>
+      Category
+      <input type="text" name="category" placeholder="Electronics, Medical, Vehicle..." value="{{ form.category or '' }}">
+    </label>
+    <label>
+      Quantity on hand
+      <input type="number" name="quantity" min="0" value="{{ form.quantity or 1 }}">
+    </label>
+    <label>
+      Low-stock threshold
+      <input type="number" name="threshold" min="0" value="{{ form.threshold or 1 }}">
+    </label>
+    <label>
+      Department <span class="muted">(optional)</span>
+      <input type="text" name="department" placeholder="IT, Facilities, Operations..." value="{{ form.department or '' }}">
+    </label>
+    <label>
+      Purchase/acquisition date <span class="muted">(optional)</span>
+      <input type="date" name="purchase_date" value="{{ form.purchase_date or '' }}">
+    </label>
+    <label>
+      Warranty expiration <span class="muted">(optional)</span>
+      <input type="date" name="warranty_expiration" value="{{ form.warranty_expiration or '' }}">
+    </label>
+    <label>
+      Last maintenance date <span class="muted">(optional)</span>
+      <input type="date" name="last_maintenance_date" value="{{ form.last_maintenance_date or '' }}">
+    </label>
+    <label>
+      Repairs on record <span class="muted">(optional)</span>
+      <input type="number" name="repair_count" min="0" value="{{ form.repair_count or 0 }}">
+    </label>
+    <div class="form-actions">
+      <button type="submit" class="btn btn-primary">Add equipment</button>
+      <a href="{{ url_for('dashboard') }}" class="btn">Cancel</a>
+    </div>
+  </form>
+</div>
+
+{% endblock %}

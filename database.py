@@ -13,6 +13,7 @@ class Database:
         self.conn = sqlite3.connect(db_path, check_same_thread=False)
         self.conn.execute("PRAGMA foreign_keys = ON")
         self._create_tables()
+        self._migrate_schema()
 
     def _create_tables(self):
         self.conn.execute("""
@@ -53,6 +54,40 @@ class Database:
                 FOREIGN KEY (asset_id) REFERENCES assets(asset_id)
             )
         """)
+        self.conn.commit()
+
+    def _migrate_schema(self):
+        """Additive, idempotent migration for the AI/health-score features.
+
+        Uses ALTER TABLE ... ADD COLUMN instead of touching the CREATE TABLE
+        statement above so that:
+          - existing databases (and the CLI app, which imports this same
+            module) keep working unchanged.
+          - re-running the app never errors on "column already exists" --
+            we check PRAGMA table_info first.
+
+        New columns are all nullable / zero-defaulted, so every pre-existing
+        row is automatically backfilled with safe values and every existing
+        query (SELECT *, to_row/from_row, etc.) keeps working -- the new
+        columns simply appear at the end of the row tuple.
+        """
+        existing_cols = {
+            row[1] for row in self.conn.execute("PRAGMA table_info(assets)")
+        }
+        new_columns = [
+            ("department", "TEXT"),
+            ("purchase_date", "TEXT"),
+            ("warranty_expiration", "TEXT"),
+            ("last_maintenance_date", "TEXT"),
+            ("repair_count", "INTEGER NOT NULL DEFAULT 0"),
+            ("health_score", "INTEGER"),
+            ("health_status", "TEXT"),
+            ("health_recommendation", "TEXT"),
+            ("health_updated_at", "TEXT"),
+        ]
+        for col_name, col_def in new_columns:
+            if col_name not in existing_cols:
+                self.conn.execute(f"ALTER TABLE assets ADD COLUMN {col_name} {col_def}")
         self.conn.commit()
 
     # ---------- Notification log ----------
@@ -137,8 +172,9 @@ class Database:
         self.conn.execute(
             """INSERT INTO assets
                (asset_id, name, category, quantity, status, current_holder,
-                low_stock_threshold, date_added)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+                low_stock_threshold, date_added, department, purchase_date,
+                warranty_expiration, last_maintenance_date, repair_count)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
             asset.to_row()
         )
         self.conn.commit()
@@ -185,6 +221,32 @@ class Database:
             "SELECT * FROM assets WHERE quantity <= low_stock_threshold ORDER BY asset_id"
         )
         return [Asset.from_row(row) for row in cur.fetchall()]
+
+    # ---------- Health score (used by health_score_service.py) ----------
+
+    def update_asset_health(self, asset_id, score, status, recommendation, updated_at):
+        """Persist a freshly computed health score so every page that reads
+        an Asset (dashboard, detail view, the AI copilot's context) sees the
+        same cached value instead of re-scoring on every request."""
+        self.conn.execute(
+            """UPDATE assets
+               SET health_score = ?, health_status = ?,
+                   health_recommendation = ?, health_updated_at = ?
+               WHERE asset_id = ?""",
+            (score, status, recommendation, updated_at, asset_id)
+        )
+        self.conn.commit()
+
+    # ---------- Checkout activity (used by health scoring + AI context) ----------
+
+    def get_checkout_counts(self):
+        """Lifetime checkout count per asset, in one query -- used instead of
+        looping get_logs_for_asset() per asset when scoring/summarizing the
+        whole inventory."""
+        cur = self.conn.execute(
+            "SELECT asset_id, COUNT(*) FROM logs WHERE action = 'CHECK_OUT' GROUP BY asset_id"
+        )
+        return {asset_id: count for asset_id, count in cur.fetchall()}
 
     # ---------- Logs ----------
 

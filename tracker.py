@@ -16,7 +16,9 @@ class AssetTracker:
 
     # ---------- Add equipment ----------
 
-    def add_equipment(self, asset_id, name, category, quantity=1, low_stock_threshold=1):
+    def add_equipment(self, asset_id, name, category, quantity=1, low_stock_threshold=1,
+                      department=None, purchase_date=None, warranty_expiration=None,
+                      last_maintenance_date=None, repair_count=0):
         asset_id = asset_id.strip().upper()
         if self.db.asset_exists(asset_id):
             return False, f"Asset ID '{asset_id}' already exists."
@@ -26,7 +28,15 @@ class AssetTracker:
         asset = Asset(
             asset_id=asset_id, name=name, category=category,
             quantity=quantity, status="Available", current_holder=None,
-            low_stock_threshold=low_stock_threshold
+            low_stock_threshold=low_stock_threshold,
+            # Optional -- only used by the AI Copilot / health-score
+            # features. Existing callers (the CLI in main.py) don't pass
+            # these and get the same behavior as before.
+            department=department or None,
+            purchase_date=purchase_date or None,
+            warranty_expiration=warranty_expiration or None,
+            last_maintenance_date=last_maintenance_date or None,
+            repair_count=repair_count or 0,
         )
         self.db.add_asset(asset)
         return True, f"Added asset '{name}' with ID {asset_id}."
@@ -102,6 +112,15 @@ class AssetTracker:
 
     def get_all_logs(self):
         return self.db.get_all_logs()
+
+    # ---------- AI / health-score support ----------
+
+    def get_checkout_counts(self):
+        """Lifetime checkout count per asset_id. Used by health_score_service.py
+        (checkout frequency is a wear-and-tear signal) and ai_service.py
+        (e.g. "most checked-out equipment" questions) instead of each of
+        them re-deriving it from raw logs independently."""
+        return self.db.get_checkout_counts()
 
     def close(self):
         self.db.close()

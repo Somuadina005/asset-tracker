@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block title %}Assistant · Asset Tracker{% endblock %}
+{% block content %}
+
+<div class="page-head">
+  <h1>AI Asset Copilot</h1>
+</div>
+<p class="muted" style="margin-top:-10px; margin-bottom:16px; font-size:13px;">
+  Ask about replacements, stock levels, departments, warranties, or ask for a summary --
+  the assistant analyzes the current inventory and health scores rather than just listing rows.
+</p>
+
+{% if not configured %}
+<div class="panel panel-narrow">
+  <div class="flash flash-error">
+    AI assistant isn't configured. Set the ANTHROPIC_API_KEY environment
+    variable on the server to enable it.
+  </div>
+</div>
+{% endif %}
+
+<div class="panel panel-narrow">
+  <form method="post" class="inline-form">
+    <input type="text" name="question" placeholder="e.g. Which assets need replacement soon?" value="{{ question }}" autofocus>
+    <button type="submit" class="btn btn-primary" {{ 'disabled' if not configured }}>Ask</button>
+  </form>
+</div>
+
+{% if answer %}
+<div class="panel">
+  <div class="panel-head">Answer</div>
+  <p>{{ answer }}</p>
+</div>
+{% endif %}
+
+{% endblock %}
