@@ -1,20 +1,18 @@
 """
 health_score_service.py
-Predictive Asset Health Score -- the ML half of the AI feature set.
+Asset Health Score -- a fully deterministic, rule-based scorer.
 
 Design goals
 ------------
-- Fully isolated from the rest of the app: nothing else imports scikit-learn
-  or numpy, so this module can be swapped out (or its model retrained on
-  real data) without touching tracker.py, database.py, or app.py.
-- No historical failure/repair-outcome data exists yet in this project, so
-  the model is trained on *synthetic* examples generated from a documented
-  heuristic (see `_heuristic_score` and `generate_synthetic_training_data`).
-  When real data becomes available (e.g. a future `maintenance_events` or
-  `failures` table), replace `generate_synthetic_training_data()` with a
-  function that pulls real (features, outcome) pairs from the DB -- the
-  rest of this module (feature extraction, scoring, recommendations)
-  doesn't need to change.
+- Fully isolated from the rest of the app: this module can be swapped out
+  without touching tracker.py, database.py, or app.py.
+- No machine learning of any kind is used. The score is a transparent,
+  hand-written formula (see `_heuristic_score`) that encodes the same
+  domain intuition a technician would apply by hand: older/heavily-used
+  assets wear down, frequent repairs signal decline, an expired warranty
+  compounds risk, etc. Because it's a plain formula instead of a trained
+  model, the exact same inputs always produce the exact same score --
+  nothing to train, retrain, or explain after the fact.
 - Read-only with respect to business rules: this module only *computes*
   scores. Persisting them is done through Database.update_asset_health(),
   which tracker.py/app.py already have access to.
@@ -31,9 +29,6 @@ Public API
 """
 
 from datetime import datetime, date
-
-import numpy as np
-from sklearn.ensemble import RandomForestRegressor
 
 # ---------------------------------------------------------------------------
 # Status thresholds -- kept as simple constants so they're easy to tune
@@ -89,50 +84,15 @@ def _heuristic_score(age_days, checkout_count, repair_count,
     return max(0.0, min(100.0, score))
 
 
-def generate_synthetic_training_data(n=1200, seed=42):
-    """Generate (features, label) pairs for training.
-
-    NOTE: this is synthetic data standing in for real historical failure/
-    repair records, which this project doesn't have yet. Swap this out for
-    a real query (e.g. joining a future `failures` table against asset
-    features at the time of failure) once that data exists -- the model
-    class and scoring pipeline below don't need to change.
-    """
-    rng = np.random.default_rng(seed)
-    age_days = rng.uniform(0, MAX_AGE_DAYS_FOR_SCORING * 1.2, n)
-    checkout_count = rng.integers(0, MAX_CHECKOUTS_FOR_SCORING + 20, n)
-    repair_count = rng.poisson(1.2, n)
-    warranty_expired = rng.integers(0, 2, n)
-    has_maintenance_record = rng.integers(0, 2, n)
-    low_stock = rng.integers(0, 2, n)
-
-    X = np.column_stack([
-        age_days, checkout_count, repair_count,
-        warranty_expired, has_maintenance_record, low_stock,
-    ])
-    y = np.array([
-        _heuristic_score(*row) + rng.normal(0, 4)  # add noise so the model
-        for row in X                                # learns a smoothed
-    ])                                               # approximation, not
-    y = np.clip(y, 0, 100)                          # a lookup table
-    return X, y
-
-
 class AssetHealthScorer:
-    """Trains once (cheap: a small RandomForest on a few hundred synthetic
-    rows) and reuses the fitted model for every score_asset() call."""
+    """Applies the deterministic `_heuristic_score` formula directly --
+    no training step, no model artifact, no randomness. Given the same
+    asset state, `score_asset()` always returns the same score."""
 
     FEATURE_NAMES = [
         "age_days", "checkout_count", "repair_count",
         "warranty_expired", "has_maintenance_record", "low_stock",
     ]
-
-    def __init__(self):
-        X, y = generate_synthetic_training_data()
-        self.model = RandomForestRegressor(
-            n_estimators=250, max_depth=12, min_samples_leaf=2, random_state=42
-        )
-        self.model.fit(X, y)
 
     # ---------- Feature extraction ----------
 
@@ -152,14 +112,14 @@ class AssetHealthScorer:
         has_maintenance_record = 1 if asset.last_maintenance_date else 0
         low_stock = 1 if asset.is_low_stock() else 0
 
-        return np.array([[
+        return (
             age_days,
             checkout_count,
             asset.repair_count or 0,
             warranty_expired,
             has_maintenance_record,
             low_stock,
-        ]])
+        )
 
     # ---------- Scoring ----------
 
@@ -171,11 +131,10 @@ class AssetHealthScorer:
         return "Replace Soon"
 
     def recommend(self, asset, score, status):
-        """Rule-based recommendation text. The ML model predicts the
-        *score*; the recommendation is a direct, human-readable mapping
+        """Rule-based recommendation text. The heuristic formula computes
+        the *score*; the recommendation is a direct, human-readable mapping
         from status (+ a couple of specific risk factors) to an action,
-        which keeps the output predictable and explainable rather than
-        having a second model generate free-form advice."""
+        which keeps the output predictable and explainable."""
         parts = []
         if status == "Replace Soon":
             parts.append("Replace this asset within the next six months.")
@@ -195,15 +154,15 @@ class AssetHealthScorer:
     def score_asset(self, asset, checkout_count):
         """Returns (score: int 0-100, status: str, recommendation: str)."""
         features = self._extract_features(asset, checkout_count)
-        raw_score = float(self.model.predict(features)[0])
+        raw_score = _heuristic_score(*features)
         score = int(round(max(0, min(100, raw_score))))
         status = self.classify(score)
         recommendation = self.recommend(asset, score, status)
         return score, status, recommendation
 
 
-# Module-level singleton -- training ~400 synthetic rows with a shallow
-# RandomForest is fast enough to do once per process at import time.
+# Module-level singleton -- stateless (no model to load/train), but kept as
+# a singleton so callers don't need to know that.
 scorer = AssetHealthScorer()
 
 
