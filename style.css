@@ -303,19 +303,6 @@ a.tag:hover { background: var(--steel-light); }
 .pill-out { background: #F7E4DB; color: #8A3208; }
 .pill-alert { background: #FBF0DC; color: #8A5B12; }
 
-/* Health-score status pills (health_score_service.py's classify()) */
-.pill-healthy { background: #E8F0E4; color: #375330; }
-.pill-monitor { background: #FBF0DC; color: #8A5B12; }
-.pill-replace { background: #F7E4DB; color: #8A3208; }
-
-/* Health score number badge, shown next to the pill */
-.health-score {
-  font-family: 'IBM Plex Mono', monospace;
-  font-weight: 600;
-  font-size: 13px;
-  margin-right: 6px;
-}
-
 /* Alert list */
 .alert-list { list-style: none; margin: 0; padding: 14px 20px; }
 .alert-list li { padding: 6px 0; font-size: 13.5px; }

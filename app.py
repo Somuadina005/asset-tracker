@@ -16,7 +16,6 @@ from flask import Flask, render_template, request, redirect, url_for, flash, Res
 from tracker import AssetTracker
 from reports import build_usage_report, export_report
 import chatbot
-import health_score_service
 
 app = Flask(
     __name__,
@@ -50,44 +49,22 @@ def inject_notification_alerts():
 def dashboard():
     assets = tracker.list_all_assets()
 
-    # Lazily score any asset that has never been through the health-score
-    # model yet (e.g. right after it's added), so the dashboard always
-    # shows a score without requiring a manual "Recalculate" click first.
-    # A full manual recalculation is still available via /health/recalculate
-    # for refreshing scores after checkouts, repairs, etc.
-    if any(a.health_score is None for a in assets):
-        health_score_service.recalculate_all(tracker)
-        assets = tracker.list_all_assets()
-
     low_stock = tracker.get_low_stock_alerts()
     checked_out = [a for a in assets if a.status == "Checked Out"]
-    replace_soon = [a for a in assets if a.health_status == "Replace Soon"]
 
     stats = {
         "total": len(assets),
         "available": len(assets) - len(checked_out),
         "checked_out": len(checked_out),
         "low_stock": len(low_stock),
-        "replace_soon": len(replace_soon),
     }
 
     return render_template(
         "index.html",
         assets=assets,
         low_stock=low_stock,
-        replace_soon=replace_soon,
         stats=stats,
     )
-
-
-@app.route("/health/recalculate", methods=["POST"])
-def recalculate_health():
-    """Manually refresh every asset's health score -- useful after logging
-    repairs/maintenance or checkouts that should shift the score."""
-    results = health_score_service.recalculate_all(tracker)
-    flagged = sum(1 for r in results if r["status"] != "Healthy")
-    flash(f"Recalculated health scores for {len(results)} asset(s) -- {flagged} need attention.", "success")
-    return redirect(request.form.get("next") or url_for("dashboard"))
 
 
 @app.route("/add", methods=["GET", "POST"])
@@ -98,7 +75,7 @@ def add_equipment():
         category = request.form.get("category", "")
         quantity = request.form.get("quantity", "1")
         threshold = request.form.get("threshold", "1")
-        # Optional -- feed the health-score model and let the AI copilot
+        # Optional -- lets the AI copilot answer department/warranty-aware
         # answer department/warranty-aware questions. Blank is fine.
         department = request.form.get("department", "").strip() or None
         purchase_date = request.form.get("purchase_date", "").strip() or None

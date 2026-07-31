@@ -1,8 +1,8 @@
 """
 seed_dummy_data.py
 Populates the Asset Tracking System with realistic dummy data so the
-dashboard, reports, AI Copilot, and health-score views all have something
-meaningful to show out of the box.
+dashboard, reports, and AI Copilot all have something meaningful to show
+out of the box.
 
 This goes through AssetTracker (the same business-logic layer app.py and
 main.py use) rather than writing to SQLite directly, so every rule the app
@@ -26,7 +26,6 @@ import random
 from datetime import date, timedelta
 
 from tracker import AssetTracker
-import health_score_service
 
 random.seed(7)  # reproducible dummy data across runs
 
@@ -39,9 +38,8 @@ def _days_ago(n):
 
 # ---------------------------------------------------------------------------
 # Dummy asset catalog -- deliberately spans several departments, ages, and
-# warranty/maintenance states so the health-score distribution and AI
-# Copilot summaries look realistic (some Healthy, some Monitor, some
-# Replace Soon; some low-stock; some checked out).
+# warranty/maintenance states so the AI Copilot's summaries look realistic
+# (some low-stock, some checked out, a mix of warranty/repair history).
 # ---------------------------------------------------------------------------
 ASSETS = [
     # asset_id, name, category, quantity, threshold, department,
@@ -125,12 +123,7 @@ def seed(db_path="asset_tracker.db", reset=False):
         ok, msg = tracker.check_out(asset_id, holder)
         print(("Checked out " if ok else "Could not check out ") + msg)
 
-    # Score everything with the (now fully rule-based, no-ML) health-score
-    # service so the dashboard has scores immediately.
-    results = health_score_service.recalculate_all(tracker)
-    flagged = sum(1 for r in results if r["status"] != "Healthy")
     print(f"\nSeeded {added} new asset(s), skipped {skipped} existing.")
-    print(f"Health scores calculated for {len(results)} asset(s) -- {flagged} flagged for attention.")
 
     tracker.close()
 

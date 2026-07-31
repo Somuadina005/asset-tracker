@@ -57,7 +57,8 @@ class Database:
         self.conn.commit()
 
     def _migrate_schema(self):
-        """Additive, idempotent migration for the AI/health-score features.
+        """Additive, idempotent migration for the AI Copilot's optional
+        asset metadata (department, warranty, maintenance, repairs).
 
         Uses ALTER TABLE ... ADD COLUMN instead of touching the CREATE TABLE
         statement above so that:
@@ -80,10 +81,6 @@ class Database:
             ("warranty_expiration", "TEXT"),
             ("last_maintenance_date", "TEXT"),
             ("repair_count", "INTEGER NOT NULL DEFAULT 0"),
-            ("health_score", "INTEGER"),
-            ("health_status", "TEXT"),
-            ("health_recommendation", "TEXT"),
-            ("health_updated_at", "TEXT"),
         ]
         for col_name, col_def in new_columns:
             if col_name not in existing_cols:
@@ -222,27 +219,12 @@ class Database:
         )
         return [Asset.from_row(row) for row in cur.fetchall()]
 
-    # ---------- Health score (used by health_score_service.py) ----------
-
-    def update_asset_health(self, asset_id, score, status, recommendation, updated_at):
-        """Persist a freshly computed health score so every page that reads
-        an Asset (dashboard, detail view, the AI copilot's context) sees the
-        same cached value instead of re-scoring on every request."""
-        self.conn.execute(
-            """UPDATE assets
-               SET health_score = ?, health_status = ?,
-                   health_recommendation = ?, health_updated_at = ?
-               WHERE asset_id = ?""",
-            (score, status, recommendation, updated_at, asset_id)
-        )
-        self.conn.commit()
-
-    # ---------- Checkout activity (used by health scoring + AI context) ----------
+    # ---------- Checkout activity (used by AI copilot context) ----------
 
     def get_checkout_counts(self):
         """Lifetime checkout count per asset, in one query -- used instead of
-        looping get_logs_for_asset() per asset when scoring/summarizing the
-        whole inventory."""
+        looping get_logs_for_asset() per asset when summarizing the whole
+        inventory."""
         cur = self.conn.execute(
             "SELECT asset_id, COUNT(*) FROM logs WHERE action = 'CHECK_OUT' GROUP BY asset_id"
         )

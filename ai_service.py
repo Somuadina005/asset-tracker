@@ -14,11 +14,11 @@ Why a "context" instead of the raw database
 Rather than dumping every column of every table (assets + logs +
 notification_log) at the model, build_context() reuses the same
 business-logic layer (AssetTracker) the rest of the app uses to compute a
-compact, analysis-ready summary: totals, low-stock items, health-score
-distribution (from health_score_service.py), warranty status, department
-breakdown, and checkout activity. This keeps the prompt small, keeps the
-model from having to re-derive arithmetic it could get wrong, and avoids
-ever sending raw holder/personnel log rows the operator didn't ask about.
+compact, analysis-ready summary: totals, low-stock items, warranty status,
+department breakdown, and checkout activity. This keeps the prompt small,
+keeps the model from having to re-derive arithmetic it could get wrong,
+and avoids ever sending raw holder/personnel log rows the operator didn't
+ask about.
 """
 
 import os
@@ -28,15 +28,14 @@ from datetime import date, datetime
 from anthropic import Anthropic
 
 from tracker import AssetTracker
-from health_score_service import parse_date  # shared date parsing helper
 
 MODEL = "claude-sonnet-4-6"
 
 SYSTEM_PROMPT = """You are the AI Asset Copilot embedded in an internal \
 Asset Tracking System. You are given a computed snapshot of the asset \
-database -- summary statistics plus a per-asset listing (health score, \
-department, stock levels, warranty status). Answer the operator's \
-question using ONLY that snapshot.
+database -- summary statistics plus a per-asset listing (department, \
+stock levels, warranty status). Answer the operator's question using \
+ONLY that snapshot.
 
 Do not just repeat rows back verbatim. Analyze the data: total up what's \
 being asked for, call out what needs attention, and give a short, concrete \
@@ -45,6 +44,20 @@ what to check on). Keep answers concise -- a few sentences or a short \
 list, similar to how a knowledgeable operations manager would summarize \
 things out loud. If the snapshot doesn't contain what's needed to answer, \
 say so plainly instead of guessing."""
+
+
+def parse_date(value):
+    """Best-effort parse of the date strings this app stores (either a
+    plain 'YYYY-MM-DD' from a form, or a full 'YYYY-MM-DD HH:MM:SS'
+    timestamp from date_added). Returns None if unparseable/missing."""
+    if not value:
+        return None
+    for fmt in ("%Y-%m-%d %H:%M:%S", "%Y-%m-%d"):
+        try:
+            return datetime.strptime(value, fmt).date()
+        except ValueError:
+            continue
+    return None
 
 
 class AIService:
@@ -74,9 +87,6 @@ class AIService:
 
     def _summary_stats(self, assets, low_stock, checkout_counts):
         checked_out = [a for a in assets if a.status == "Checked Out"]
-        scored = [a for a in assets if a.health_score is not None]
-        replace_soon = [a for a in scored if a.health_status == "Replace Soon"]
-        monitor = [a for a in scored if a.health_status == "Monitor"]
         expired_warranty = [
             a for a in assets
             if parse_date(a.warranty_expiration) and parse_date(a.warranty_expiration) < date.today()
@@ -88,13 +98,6 @@ class AIService:
             f"Checked out: {len(checked_out)}",
             f"Low stock: {len(low_stock)}",
         ]
-        if scored:
-            lines.append(
-                f"Health scores computed for {len(scored)}/{len(assets)} assets -- "
-                f"{len(replace_soon)} flagged Replace Soon, {len(monitor)} flagged Monitor."
-            )
-        else:
-            lines.append("Health scores have not been calculated yet.")
         if expired_warranty:
             lines.append(f"Assets with an expired warranty: {len(expired_warranty)}")
         if checkout_counts:
@@ -122,8 +125,6 @@ class AIService:
             checkouts = checkout_counts.get(a.asset_id, 0)
             if checkouts:
                 bits.append(f"{checkouts} checkout(s)")
-            if a.health_score is not None:
-                bits.append(f"health={a.health_score} ({a.health_status})")
             warranty_date = parse_date(a.warranty_expiration)
             if warranty_date:
                 flag = " EXPIRED" if warranty_date < date.today() else ""

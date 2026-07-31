@@ -37,22 +37,6 @@
   </div>
 
   <div class="panel">
-    <div class="panel-head">Predicted health</div>
-    {% if asset.health_score is not none %}
-    <dl class="detail-list">
-      <dt>Score</dt>
-      <dd><span class="health-score">{{ asset.health_score }}</span>/100 <span class="pill {{ asset.health_pill_class() }}">{{ asset.health_status }}</span></dd>
-      <dt>Recommendation</dt>
-      <dd>{{ asset.health_recommendation }}</dd>
-      <dt>Last calculated</dt>
-      <dd>{{ asset.health_updated_at or "—" }}</dd>
-    </dl>
-    {% else %}
-    <p class="empty-state">Not scored yet -- visit the dashboard or hit "Recalculate health scores" to generate one.</p>
-    {% endif %}
-  </div>
-
-  <div class="panel">
     <div class="panel-head">History</div>
     {% if logs %}
     <ul class="history-list">

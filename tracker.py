@@ -29,9 +29,9 @@ class AssetTracker:
             asset_id=asset_id, name=name, category=category,
             quantity=quantity, status="Available", current_holder=None,
             low_stock_threshold=low_stock_threshold,
-            # Optional -- only used by the AI Copilot / health-score
-            # features. Existing callers (the CLI in main.py) don't pass
-            # these and get the same behavior as before.
+            # Optional -- only used by the AI Copilot feature. Existing
+            # callers (the CLI in main.py) don't pass these and get the
+            # same behavior as before.
             department=department or None,
             purchase_date=purchase_date or None,
             warranty_expiration=warranty_expiration or None,
@@ -113,13 +113,12 @@ class AssetTracker:
     def get_all_logs(self):
         return self.db.get_all_logs()
 
-    # ---------- AI / health-score support ----------
+    # ---------- AI copilot support ----------
 
     def get_checkout_counts(self):
-        """Lifetime checkout count per asset_id. Used by health_score_service.py
-        (checkout frequency is a wear-and-tear signal) and ai_service.py
-        (e.g. "most checked-out equipment" questions) instead of each of
-        them re-deriving it from raw logs independently."""
+        """Lifetime checkout count per asset_id. Used by ai_service.py
+        (e.g. "most checked-out equipment" questions) instead of
+        re-deriving it from raw logs independently."""
         return self.db.get_checkout_counts()
 
     def close(self):

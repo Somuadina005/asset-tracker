@@ -6,8 +6,8 @@
   <h1>AI Asset Copilot</h1>
 </div>
 <p class="muted" style="margin-top:-10px; margin-bottom:16px; font-size:13px;">
-  Ask about replacements, stock levels, departments, warranties, or ask for a summary --
-  the assistant analyzes the current inventory and health scores rather than just listing rows.
+  Ask about stock levels, departments, warranties, or ask for a summary --
+  the assistant analyzes the current inventory rather than just listing rows.
 </p>
 
 {% if not configured %}
@@ -21,7 +21,7 @@
 
 <div class="panel panel-narrow">
   <form method="post" class="inline-form">
-    <input type="text" name="question" placeholder="e.g. Which assets need replacement soon?" value="{{ question }}" autofocus>
+    <input type="text" name="question" placeholder="e.g. What's low on stock right now?" value="{{ question }}" autofocus>
     <button type="submit" class="btn btn-primary" {{ 'disabled' if not configured }}>Ask</button>
   </form>
 </div>
